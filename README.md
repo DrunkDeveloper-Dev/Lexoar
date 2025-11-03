@@ -1,13 +1,13 @@
-# Tensora L2
+# Lexora L2
 
-AI Layer 2 built on BNB Chain using the OP Stack.
+AI Layer 2 built on Solana Chain using the OP Stack.
 
 ## Configuration
 
-- **Chain ID**: 44444444
-- **L1**: BNB Smart Chain (BSC)
+- **Chain ID**: 5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp
+- **L1**: Solana (SOL)
 - **Technology**: OP Stack
-- **Explorer**: https://explorer.tensora.sh
+- **Explorer**: https://explorer.lexora.com
 
 ## Setup
 
@@ -30,12 +30,6 @@ AI Layer 2 built on BNB Chain using the OP Stack.
 - **Block Time**: ~0.65 seconds
 - **Finality**: ~2 seconds
 
-## Contract Addresses
-
-- **L1 Standard Bridge**: 0xD9fa19FaC816a336230af459aB2C7Ed55072Cc4c
-- **Optimism Portal**: 0x5D99EDfF294E8E31f0b038Ef844267f7952850AA
-- **System Config**: 0x257BE5F8C79061edAcF64C4a3aBe5C316f274Fe3
-
 ## Files Structure
 
 ## Quick Start
@@ -43,7 +37,7 @@ AI Layer 2 built on BNB Chain using the OP Stack.
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd tensora-l2
+cd lexora-l2
 
 # Set up environment
 cp .env.example .env
