@@ -1,0 +1,45 @@
+[server]
+host = "0.0.0.0"
+port = 8545
+read_timeout_seconds = 30
+write_timeout_seconds = 30
+
+[backend]
+url = "http://op-geth:8551"
+jwt_secret_file = "/secrets/jwt.txt"
+
+[sendRawTxConditional]
+enabled = true
+ratelimit = 5000
+backend = "http://op-geth:8551"
+max_cost = 1000000
+
+[methods]
+allowed = [
+    "eth_sendRawTransaction",
+    "eth_sendRawTransactionConditional",
+    "eth_call",
+    "eth_estimateGas",
+    "eth_getTransactionByHash",
+    "eth_getTransactionReceipt",
+    "eth_getBlockByNumber",
+    "eth_getBlockByHash",
+    "eth_blockNumber",
+    "eth_chainId",
+    "eth_gasPrice",
+    "eth_getBalance",
+    "eth_getCode",
+    "eth_getTransactionCount",
+    "eth_getLogs",
+    "net_version",
+    "web3_clientVersion"
+]
+
+[metrics]
+enabled = true
+port = 9090
+path = "/metrics"
+
+[logging]
+level = "info"
+format = "json"

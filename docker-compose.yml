@@ -1,0 +1,171 @@
+version: '3.8'
+services:
+  op-geth:
+    image: ghcr.io/bnb-chain/op-geth:v0.5.7
+    container_name: op-geth
+    command:
+    - --datadir=/data
+    - --http
+    - --http.addr=0.0.0.0
+    - --http.port=8545
+    - --http.api=eth,net,web3,debug,txpool
+    - --http.corsdomain=*
+    - --http.vhosts=*
+    - --ws
+    - --ws.addr=0.0.0.0
+    - --ws.port=8546
+    - --ws.api=eth,net,web3,debug,txpool
+    - --ws.origins=*
+    - --authrpc.addr=0.0.0.0
+    - --authrpc.port=8551
+    - --authrpc.jwtsecret=/config/jwt.txt
+    - --authrpc.vhosts=*
+    - --rollup.sequencerhttp=https://opbnb-mainnet-rpc.bnbchain.org
+    - --networkid=44444444
+    - --syncmode=full
+    volumes:
+    - ./geth-data:/data
+    - ./config/genesis-l2.json:/config/genesis-l2.json:ro
+    - ./config/jwt.txt:/config/jwt.txt:ro
+    ports:
+    - 8545:8545
+    - 8546:8546
+    - 8551:8551
+    networks:
+    - tensora-net
+    restart: unless-stopped
+  op-node:
+    image: ghcr.io/bnb-chain/op-node:v0.5.3-hotfix-patched
+    container_name: op-node
+    command:
+    - op-node
+    - --l1=https://bsc-dataseed1.binance.org
+    - --l2=http://op-geth:8551
+    - --l2.jwt-secret=/config/jwt.txt
+    - --rollup.config=/config/rollup.json
+    - --rpc.addr=0.0.0.0
+    - --rpc.port=9545
+    - --p2p.disable
+    - --sequencer.enabled=true
+    - --sequencer.l1-confs=15
+    - --l1.trustrpc
+    volumes:
+    - ./config:/config:ro
+    ports:
+    - 9545:9545
+    networks:
+    - tensora-net
+    depends_on:
+    - op-geth
+    restart: unless-stopped
+  op-batcher:
+    image: ghcr.io/bnb-chain/op-batcher:v0.5.3-hotfix
+    container_name: op-batcher
+    command:
+    - op-batcher
+    - --l1-eth-rpc=https://bsc-dataseed1.binance.org
+    - --l2-eth-rpc=http://op-geth:8545
+    - --rollup-rpc=http://op-node:9545
+    - --poll-interval=1s
+    - --sub-safety-margin=6
+    - --num-confirmations=1
+    - --safe-abort-nonce-too-low-count=3
+    - --resubmission-timeout=30s
+    - --rpc.addr=0.0.0.0
+    - --rpc.port=8548
+    - --rpc.enable-admin
+    - --max-channel-duration=1
+    - --mnemonic=${BATCHER_MNEMONIC}
+    - --sequencer-hd-path=m/44'/60'/0'/0/0
+    networks:
+    - tensora-net
+    depends_on:
+    - op-node
+    env_file:
+    - .env
+    restart: unless-stopped
+  op-proposer:
+    image: ghcr.io/bnb-chain/op-proposer:v0.5.3-hotfix
+    container_name: op-proposer
+    command:
+    - op-proposer
+    - --l1-eth-rpc=https://bsc-dataseed1.binance.org
+    - --rollup-rpc=http://op-node:9545
+    - --poll-interval=12s
+    - --mnemonic=${PROPOSER_MNEMONIC}
+    - --l2-output-hd-path=m/44'/60'/0'/0/1
+    - --game-type=0
+    - --game-factory-address=0xf44626d3e23cAAaa8Bcc3934808F7fD685bbb591
+    - --proposal-interval=12s
+    - --rpc.port=8560
+    - --game-type=0
+    networks:
+    - tensora-net
+    depends_on:
+    - op-node
+    env_file:
+    - .env
+    restart: unless-stopped
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: blockscout
+      POSTGRES_USER: blockscout
+      POSTGRES_PASSWORD: blockscout
+    volumes:
+    - postgres-data:/var/lib/postgresql/data
+    networks:
+    - tensora-net
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U blockscout
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  blockscout:
+    image: blockscout/blockscout:latest
+    container_name: blockscout
+    restart: unless-stopped
+    command: sh -c "bin/blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\"
+      && bin/blockscout start"
+    ports:
+    - 4000:4000
+    environment:
+      DATABASE_URL: postgresql://blockscout:blockscout@postgres:5432/blockscout
+      ETHEREUM_JSONRPC_VARIANT: geth
+      ETHEREUM_JSONRPC_HTTP_URL: http://op-geth:8545
+      ETHEREUM_JSONRPC_TRACE_URL: http://op-geth:8545
+      ETHEREUM_JSONRPC_WS_URL: ws://op-geth:8546
+      CHAIN_ID: '44444444'
+      COIN: TORA
+      COIN_NAME: Tensora
+      NETWORK: Tensora L2
+      SUBNETWORK: Tensora L2
+      BLOCKSCOUT_HOST: explorer.tensora.sh
+      BLOCKSCOUT_PROTOCOL: https
+      SECRET_KEY_BASE: 56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP57UxblTxBn8TlREsLrbKtN
+      ECTO_USE_SSL: 'false'
+      POOL_SIZE: '50'
+      PORT: '4000'
+      API_V2_ENABLED: 'true'
+      DISABLE_INDEXER: 'false'
+      DISABLE_WEBAPP: 'false'
+      DISABLE_EXCHANGE_RATES: 'true'
+      SHOW_PRICE_CHART: 'false'
+      SHOW_TXS_CHART: 'true'
+      ENABLE_TXS_STATS: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      op-geth:
+        condition: service_started
+    networks:
+    - tensora-net
+volumes:
+  postgres-data: null
+networks:
+  tensora-net:
+    driver: bridge
